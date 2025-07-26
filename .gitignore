@@ -1,0 +1,21 @@
+# Bytecode files
+__pycache__/
+*.py[cod]
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Test files
+.pytest_cache/
+.coverage
+
+# OS-specific
+.DS_Store
+Thumbs.db

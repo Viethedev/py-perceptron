@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=75.8.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "perceptron"
+version = "1.1.0"
+description = "A light-weight and efficient MLP library, designed for learning and experimenting!"
+authors = [
+  { name = "Viethedev", alias = "Vietthedev}
+]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "numpy>=2.0.2",
+  "matplotlib>=3.10.0"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
