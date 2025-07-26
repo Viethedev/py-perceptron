@@ -478,15 +478,28 @@ class optimizer:
 
     def use_Vanilla(self, learning_rate=0.01):
         self.in_use = Vanilla(learning_rate)
-        
+    
 class Feedforward:
-    def __init__(self):
+    """
+    Feedforward Neural Network (FNN)
+
+    A modular fully-connected neural network with customizable layers,
+    activations, loss functions, optimizers, and training features.
+
+    """
+    def __init__(self) -> None:
+        """
+        Initialize model.
+        """  
         self.layers = layers()
         np.random.seed(42)
         self.loss = loss()
         self.optimizer = optimizer()
  
-    def build(self):      
+    def build(self) -> None:    
+        """
+        Build the model architecture based on modifications.
+        """
         self.opt = self.optimizer.in_use
         self.denses = self.layers.hidden_layers
         input_dim = self.layers.input
@@ -494,13 +507,42 @@ class Feedforward:
             layer.build(input_dim, self.opt)
             input_dim = layer.units
 
-    def predict(self, x:np.ndarray):
+    def predict(self, x:np.ndarray) -> np.ndarray:
+        """
+        Perform a forward pass through the network.
+
+        Args:
+            X (np.ndarray): Input data.
+
+        Returns:
+            np.ndarray: Output of the final layer.
+        """
+        
         output = x
         for layer in self.denses:
             output = layer.forward(output)
         return output
 
-    def train(self, X_train:np.ndarray, Y_train:np.ndarray, epochs=100, X_val=None, Y_val=None, val_split=0.0, batch_size=None, patience=float('inf'), verbose=True, save_best=False):        
+    def train(self, X_train:np.ndarray, Y_train:np.ndarray, epochs=100, 
+              X_val=None, Y_val=None, val_split=0.0, batch_size=None, 
+              patience=float('inf'), verbose=True, save_best=False,
+              plot=False) -> None:        
+        """
+        Train the model on the given data.
+
+        Args:
+            X_train (np.ndarray): Training input.
+            Y_train (np.ndarray): Training labels.
+            epochs (int): Maximum training epochs.
+            X_val (np.ndarray): Validation input.
+            Y_val (np.ndarray): Validation labels.
+            val_split (float): % of train data to use as validation if val not provided.
+            batch_size (int): Size of training batches.
+            patience (int): Early stopping patience.
+            verbose (bool): Whether to print progress.
+            save_best (bool): Save best model weights.
+            plot (bool): Whether to plot training progress.
+        """
         if X_val is not None and Y_val is not None:
             validation_is_on = True
         elif X_val is None and Y_val is None and val_split == 0:
@@ -533,23 +575,22 @@ class Feedforward:
             wait = 0
         
         num_batches = int(num_samples / batch_size)
-
-        if num_samples < 256:
-            indices = np.arange(num_samples, dtype=np.uint8)
-        elif num_samples < 65536:
-            indices = np.arange(num_samples, dtype=np.uint16)
-        elif num_samples < 2 ** 32:
-            indices = np.arange(num_samples, dtype=np.uint32)
-        elif num_samples < 2 ** 64:
-            indices = np.arange(num_samples, dtype=np.uint64)
-        else:
-            indices = np.arange(num_samples, dtype=int)
+        
+        if plot:       
+            import matplotlib.pyplot as plt
+            self.loss_history = np.zeros(epochs)
+            plt.ion()
+            if validation_is_on: self.val_loss_history = np.zeros(epochs)
+            fig, ax1 = plt.subplots(figsize=(8, 4))
+            fig.suptitle("Training Progress")
+            ax1.set_ylabel("Loss")
+            ax1.set_xlabel("Epochs")
+            loss_line, = ax1.plot([], [], 'r-', label="Train Loss")
+            if validation_is_on: val_loss_line, = ax1.plot([], [], 'g--', label="Val Loss") 
+            ax1.legend()             
             
-        #self.loss_history = np.zeros(epochs)
-        #self.val_loss_history = np.zeros(epochs)
-
         for epoch in range(1, epochs+1):
-            np.random.shuffle(indices)
+            indices = np.random.permutation(num_samples)
             
             X_shuffled = np.array_split(X_train[indices], num_batches, axis=0)
             Y_shuffled = np.array_split(Y_train[indices], num_batches, axis=0)
@@ -568,17 +609,14 @@ class Feedforward:
                 total_loss += loss_fd(yb, output)
                 
             train_loss = total_loss / num_batches
-            #self.loss_history[epoch] = train_loss
-            
-            val_loss = train_loss.copy()
             
             if validation_is_on:
                 val_output = X_val
                 for layer in self.denses:
                     val_output = layer.forward(val_output)
-                val_loss = loss_fd(Y_val, val_output)                   
-
-            #self.val_loss_history[epoch] = val_loss
+                val_loss = loss_fd(Y_val, val_output) 
+            else:
+                val_loss = train_loss.copy()                  
 
             if verbose and epoch % 100 == 0:
                 val_log = f" | Val Loss: {val_loss:.4f}" if validation_is_on else ""
@@ -595,10 +633,47 @@ class Feedforward:
                     if wait >= patience:
                         if verbose: print(f"Early stopping at epoch {epoch}")
                         break
+            if plot:
+                self.loss_history[epoch-1] = train_loss
+                if validation_is_on: self.val_loss_history[epoch-1] = val_loss
+                if epoch % 10 == 0:
+                    x_range = range(epoch)
+                    loss_line.set_data(x_range, self.loss_history[:epoch])
+                    if validation_is_on: val_loss_line.set_data(x_range, self.val_loss_history[:epoch])
+                    ax1.relim(); ax1.autoscale_view()
+                    plt.draw(); plt.pause(0.001)
+        if plot:
+            plt.ioff()
+            plt.show()
 
         if save_best and self.best_weights is not None:
             self.set_weights(self.best_weights)
 
+    def get_weights(self):
+        """
+        Return a copy of current weights and biases.
+
+        Returns:
+            dict: Containing 'weights' and 'biases'.
+        """
+        
+        return {
+            'weights': [layer.weights.copy() for layer in self.layers],
+            'biases': [layer.biases.copy() for layer in self.layers]
+            }
+    
+    def set_weights(self, weights_dict):
+        """
+        Load a saved weight dictionary into the model.
+
+        Args:
+            weights_dict (dict): Dictionary of weights and biases.
+        """
+        
+        for layer, w, b in zip(self.layers, weights_dict['weights'], weights_dict['biases']):
+            layer.weights = w.copy()
+            layer.biases = b.copy()
+        
     def summary(self):
         print(f"===== ===== ===== Summary ===== ===== =====")
         print("Layer		Units		Activation")
@@ -628,7 +703,7 @@ if __name__ == "__main__":
     y = np.array([[0],[1],[1],[0]], dtype=np.uint8)
     prepare = time.time()
 
-    model.train(x, y, epochs=600)
+    model.train(x, y, epochs=600, plot=False)
     train = time.time()
 
     print('Predicts:\n', model.predict(x))

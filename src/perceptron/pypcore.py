@@ -232,11 +232,11 @@ class dense:
         grad_input = np.dot(grad_z, self.weights.T)
         return grad_input, grad_w, grad_b
     
-class fnn:
+class XFNN:
     """
-    Feedforward Neural Network (FNN)
+    Accelerated Feedforward Neural Network (XFNN)
 
-    A simple fully-connected neural network with customizable layers,
+    A fast fully-connected neural network with customizable layers,
     activations, loss functions, optimizers, and training features.
     """
     
@@ -546,7 +546,7 @@ if __name__ ==  "__main__":
         [1],
         [0]
         ])
-    model = fnn(input_size=2)
+    model = XFNN(input_size=2)
     model.add_layer(dense(2, activation=tanh))
     model.add_layer(dense(1, activation=sigmoid))
     model.build()
